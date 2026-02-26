@@ -38,6 +38,7 @@ desktop.ini
 
 # Logs
 *.log
+api/lichess-config.php
 
 # Node / frontend (if added later)
 node_modules/

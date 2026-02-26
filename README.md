@@ -45,6 +45,8 @@ If browser Stockfish fails to load (e.g., CDN blocked), the frontend attempts a 
 
 The PHP fallback is currently a stub that returns a JSON error message (server-side engine disabled in the PHP build).
 
+Move calculation is now implemented via the **Lichess Cloud Eval API** through `api/calculate-next-move.php` (PHP proxy endpoint).
+
 ## Project Layout
 
 - `index.php` - active web entrypoint
@@ -83,8 +85,8 @@ Required secrets:
 - `FTP_PORT`
 - `REMOTE_PATH`
 
-Recommended value in this hosting setup:
-- `REMOTE_PATH=public_html`
+Additional API secret used for move calculation:
+- `Lichess_Secret` (used by GitHub Actions to generate `api/lichess-config.php` on deploy)
 
 ## Operational Notes
 

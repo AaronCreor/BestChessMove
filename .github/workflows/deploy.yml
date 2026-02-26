@@ -63,6 +63,20 @@ jobs:
           }
           EOF
 
+      - name: Generate Lichess API config (server-only)
+        if: ${{ secrets.Lichess_Secret != '' }}
+        shell: bash
+        run: |
+          mkdir -p api
+          cat > api/lichess-config.php <<'EOF'
+          <?php
+          declare(strict_types=1);
+
+          return [
+              'token' => '${{ secrets.Lichess_Secret }}',
+          ];
+          EOF
+
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:

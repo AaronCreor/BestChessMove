@@ -684,10 +684,9 @@
     setStatus("Calculating...", false);
     bestMoveText.textContent = "-";
 
-    analyzeWithBrowserStockfish(fen, depth)
-      .catch(function () {
-        return analyzeViaBackendFallback(fen, depth);
-      })
+    setLoadingIndeterminate("Contacting analysis server...");
+
+    analyzeViaBackendFallback(fen, depth)
       .then(function (data) {
         if (!data.best_move) {
           setStatus(data.reason || "No move available.", false);
@@ -700,13 +699,10 @@
         bestMoveText.textContent = scoreLabel ? (moveLabel + " | " + scoreLabel) : moveLabel;
 
         var parts = ["Best move calculated and highlighted"];
-        if (data.engine === "browser_stockfish") {
-          parts.push("with browser Stockfish");
-          if (typeof data.engine_url === "string" && data.engine_url.indexOf("/vendor/stockfish/") === 0) {
-            parts.push("(local assets)");
-          }
-        } else if (data.engine === "server_fallback") {
-          parts.push("with server fallback");
+        if (data.engine === "lichess_cloud_eval") {
+          parts.push("with Lichess cloud eval");
+        } else if (data.engine) {
+          parts.push("with " + data.engine);
         }
         if (typeof data.depth === "number") {
           parts.push("(depth " + data.depth + ")");

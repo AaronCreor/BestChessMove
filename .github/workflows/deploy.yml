@@ -2,7 +2,7 @@ name: Deploy To DirectAdmin (FTP)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 concurrency:
@@ -35,6 +35,18 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Validate WSGI startup file
+        shell: bash
+        run: |
+          if grep -q "imp.load_source('wsgi', 'passenger_wsgi.py')" passenger_wsgi.py; then
+            echo "::error::passenger_wsgi.py contains a recursive DirectAdmin stub. Replace it with the Django WSGI loader before deploying."
+            exit 1
+          fi
+          if ! grep -q "get_wsgi_application" passenger_wsgi.py; then
+            echo "::error::passenger_wsgi.py does not appear to be the Django startup file."
             exit 1
           fi
 
@@ -94,4 +106,3 @@ jobs:
             echo "3. Run \`python manage.py migrate\`"
             echo "4. Restart the Python app"
           } >> "$GITHUB_STEP_SUMMARY"
-

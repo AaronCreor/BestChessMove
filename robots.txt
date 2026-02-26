@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://best-chess-move.com/sitemap.xml
+

@@ -50,6 +50,19 @@ jobs:
             exit 1
           fi
 
+      - name: Generate deploy metadata
+        shell: bash
+        run: |
+          TS="$(date -u '+%b %d, %Y %H:%M UTC')"
+          cat > deploy-meta.json <<EOF
+          {
+            "last_deployed_at": "$TS",
+            "source": "github_actions",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:

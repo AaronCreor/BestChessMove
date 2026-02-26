@@ -401,6 +401,12 @@
     this.worker = null;
     this.initPromise = null;
     this.analysisRequest = null;
+    this.engineUrls = [
+      "/vendor/stockfish/stockfish-18-single.js",
+      "/vendor/stockfish/stockfish.js",
+      "https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js"
+    ];
+    this.activeEngineUrl = null;
     this.initState = {
       uciOk: false,
       readyOk: false
@@ -409,6 +415,20 @@
 
   BrowserStockfishEngine.prototype._post = function (command) {
     this.worker.postMessage(command);
+  };
+
+  BrowserStockfishEngine.prototype._resetWorker = function () {
+    if (this.worker) {
+      try {
+        this.worker.terminate();
+      } catch (err) {
+        // Ignore worker termination issues during fallback attempts.
+      }
+    }
+    this.worker = null;
+    this.initPromise = null;
+    this.analysisRequest = null;
+    this.initState = { uciOk: false, readyOk: false };
   };
 
   BrowserStockfishEngine.prototype._handleLine = function (line) {
@@ -468,6 +488,24 @@
       return this.initPromise.promise;
     }
 
+    var urls = this.engineUrls.slice();
+
+    function tryNextUrl(index, lastError) {
+      if (index >= urls.length) {
+        return Promise.reject(lastError || new Error("No Stockfish worker source available."));
+      }
+      return self._initWithUrl(urls[index]).catch(function (err) {
+        self._resetWorker();
+        return tryNextUrl(index + 1, err);
+      });
+    }
+
+    return tryNextUrl(0, null);
+  };
+
+  BrowserStockfishEngine.prototype._initWithUrl = function (engineUrl) {
+    var self = this;
+
     this.initPromise = {};
     this.initPromise.promise = new Promise(function (resolve, reject) {
       self.initPromise.resolve = resolve;
@@ -475,12 +513,9 @@
     });
 
     try {
-      var importUrl = "https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js";
-      var workerSource = "self.__stockfish_loader_err=null;try{importScripts(" + JSON.stringify(importUrl) + ");}catch(e){self.__stockfish_loader_err=e&&e.message?e.message:String(e);throw e;}";
-      var blob = new Blob([workerSource], { type: "application/javascript" });
-      var blobUrl = URL.createObjectURL(blob);
-      this.worker = new Worker(blobUrl);
-      URL.revokeObjectURL(blobUrl);
+      // Load the worker script directly so relative stockfish.wasm paths resolve correctly.
+      this.worker = new Worker(engineUrl);
+      this.activeEngineUrl = engineUrl;
     } catch (err) {
       this.initPromise.reject(new Error("Failed to create Stockfish worker: " + (err.message || String(err))));
       this.initPromise = null;
@@ -569,10 +604,11 @@
   function analyzeWithBrowserStockfish(fen, depth) {
     var startedAt = performance.now();
     var latestInfo = null;
+    var initTimeoutMs = 12000;
 
     setLoadingIndeterminate("Loading browser engine...");
 
-    return browserEngine.analyze(fen, depth, function (info) {
+    var analysisPromise = browserEngine.analyze(fen, depth, function (info) {
       latestInfo = info;
       if (typeof info.depth === "number") {
         var pct = (info.depth / depth) * 100;
@@ -591,6 +627,7 @@
       }
       return {
         engine: "browser_stockfish",
+        engine_url: browserEngine.activeEngineUrl,
         best_move: parsed.best_move,
         from_square: parsed.from_square,
         to_square: parsed.to_square,
@@ -601,6 +638,14 @@
         elapsed_ms: Math.round(performance.now() - startedAt)
       };
     });
+
+    var timeoutPromise = new Promise(function (_, reject) {
+      setTimeout(function () {
+        reject(new Error("Browser Stockfish initialization timed out."));
+      }, initTimeoutMs);
+    });
+
+    return Promise.race([analysisPromise, timeoutPromise]);
   }
 
   function analyzeViaBackendFallback(fen, requestedDepth) {
@@ -657,6 +702,9 @@
         var parts = ["Best move calculated and highlighted"];
         if (data.engine === "browser_stockfish") {
           parts.push("with browser Stockfish");
+          if (typeof data.engine_url === "string" && data.engine_url.indexOf("/vendor/stockfish/") === 0) {
+            parts.push("(local assets)");
+          }
         } else if (data.engine === "server_fallback") {
           parts.push("with server fallback");
         }

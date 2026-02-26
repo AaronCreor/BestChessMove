@@ -1,5 +1,17 @@
 <?php
 declare(strict_types=1);
+
+$deployLabel = 'Last deployed via GitHub Actions: pending';
+$deployMetaFile = __DIR__ . DIRECTORY_SEPARATOR . 'deploy-meta.json';
+if (is_file($deployMetaFile)) {
+    $raw = file_get_contents($deployMetaFile);
+    if (is_string($raw)) {
+        $meta = json_decode($raw, true);
+        if (is_array($meta) && !empty($meta['last_deployed_at'])) {
+            $deployLabel = 'Last deployed via GitHub Actions on ' . $meta['last_deployed_at'];
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -7,7 +19,46 @@ declare(strict_types=1);
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Best Chess Move</title>
+  <meta name="description" content="Interactive next chess move calculator. Set positions with drag-and-drop or FEN, flip the board, and analyze with browser-based Stockfish.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://best-chess-move.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Best Chess Move">
+  <meta property="og:description" content="Interactive chess position analyzer with FEN input and browser-based Stockfish move calculation.">
+  <meta property="og:url" content="https://best-chess-move.com/">
+  <meta property="og:site_name" content="Best Chess Move">
+  <meta name="twitter:card" content="summary">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Best Chess Move",
+    "url": "https://best-chess-move.com/",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web Browser",
+    "description": "Interactive chess position analyzer with FEN input, board editing, and browser-based Stockfish move calculation.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "creator": {
+      "@type": "Person",
+      "name": "Aaron Creor",
+      "url": "https://aaroncreor.com/"
+    }
+  }
+  </script>
   <link rel="stylesheet" href="css/style.css">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-00Z48PQSF2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-00Z48PQSF2');
+  </script>
 </head>
 <body>
   <main class="app-shell">
@@ -28,6 +79,11 @@ declare(strict_types=1);
           </div>
         </div>
       </div>
+      <section class="about-panel" aria-label="About this tool">
+        <h2>Next Chess Move</h2>
+        <p>Drag pieces to configure the board and press <strong>Calculate next move</strong>. The engine will analyze the current position and highlight the suggested move.</p>
+        <p>Use FEN to paste positions instantly, flip the board for Black's perspective, and test openings, tactics, or endgames on desktop or mobile.</p>
+      </section>
     </section>
 
     <aside class="controls-panel" aria-label="Chess controls">
@@ -65,8 +121,13 @@ declare(strict_types=1);
       </div>
     </aside>
   </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-left">Created by <a href="https://aaroncreor.com/" target="_blank" rel="noopener noreferrer">Aaron Creor</a></p>
+      <p class="footer-right"><?php echo htmlspecialchars($deployLabel, ENT_QUOTES, 'UTF-8'); ?></p>
+    </div>
+  </footer>
 
   <script src="js/app.js"></script>
 </body>
 </html>
-

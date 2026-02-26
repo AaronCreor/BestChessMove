@@ -10,6 +10,7 @@ This project was converted from a Django implementation because the target host'
 - `css/style.css` (UI styling)
 - `js/app.js` (interactive board + browser Stockfish integration)
 - `api/calculate-next-move.php` (PHP fallback stub endpoint)
+- `robots.txt` / `sitemap.xml` (SEO)
 
 ## Features
 
@@ -34,6 +35,10 @@ Primary engine is **browser Stockfish** (client-side):
 - No server-side engine process required
 - Works on basic PHP hosting
 - Avoids Python/LiteSpeed integration issues on shared hosts
+- Implemented as JavaScript running in a Web Worker (with a Stockfish JS/WASM build)
+- Local-first worker loading:
+  - `/vendor/stockfish/stockfish.js` (preferred)
+  - CDN fallback (`jsDelivr`)
 
 If browser Stockfish fails to load (e.g., CDN blocked), the frontend attempts a fallback request to:
 - `api/calculate-next-move.php`
@@ -46,6 +51,8 @@ The PHP fallback is currently a stub that returns a JSON error message (server-s
 - `css/` - active styles
 - `js/` - active frontend app logic
 - `api/` - active PHP endpoints
+- `vendor/stockfish/` - local Stockfish worker/wasm assets (preferred; CDN fallback exists)
+- `deploy-meta.json` - generated during GitHub Actions deploy (footer timestamp)
 - `_django/` - archived legacy Django implementation (not used for production)
 
 ## Legacy Django Archive
@@ -58,44 +65,15 @@ It includes the original Django app, Python backend engine, templates, and deplo
 
 It is excluded from FTP deployment via GitHub Actions.
 
-## Local Development (PHP/static)
-
-Because the app is mostly frontend-driven, any simple local static/PHP server works.
-
-### Option A: PHP built-in server
-
-```bash
-php -S localhost:8000
-```
-
-Open:
-- `http://localhost:8000/`
-
-### Option B: VS Code Live Server / any static server
-
-Works for the UI, but note the PHP fallback endpoint will not execute unless a PHP server is used.
-
-## DirectAdmin Deployment
-
-### FTP path
-
-If your FTP user is chrooted to the domain root (as in this setup), set:
-
-- `REMOTE_PATH=public_html`
-
-### Why not `domains/.../public_html`?
-
-That path is the server filesystem path used by DirectAdmin internally.  
-Your FTP user may already be rooted at the domain directory, so only `public_html` is visible/valid for FTP uploads.
-
 ## GitHub Actions Deployment
 
 Workflow:
 - `.github/workflows/deploy.yml`
 
 Behavior:
-- Triggers on push to `main` or `master`
+- Triggers on push to `master`
 - Deploys site files over FTP to `REMOTE_PATH`
+- Generates `deploy-meta.json` with the UTC deployment timestamp used by the footer
 - Excludes local/dev artifacts and `_django/`
 
 Required secrets:
@@ -111,13 +89,7 @@ Recommended value in this hosting setup:
 ## Operational Notes
 
 - Browser Stockfish is loaded from CDN (`jsDelivr`) inside a Web Worker.
+- The app now loads Stockfish via a direct worker URL (local-first), which fixes the prior `.wasm` path issue caused by blob worker wrappers.
+- If local assets are missing, it falls back to CDN.
 - If the CDN is blocked, move calculation will fail with a user-facing error unless a real server-side fallback is implemented.
-- To remove CDN dependency, host the Stockfish worker locally and update `js/app.js`.
-
-## Future Improvements
-
-- Local-hosted Stockfish worker assets (no CDN dependency)
-- Real PHP fallback engine integration (e.g., external analysis API proxy)
-- SVG/pixel chess piece set
-- PGN import/export
-- Position setup tools (castling/en passant controls)
+- To remove CDN dependency completely, upload `stockfish.js` and `stockfish.wasm` into `vendor/stockfish/`.

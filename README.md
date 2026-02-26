@@ -1,117 +1,123 @@
 # best-chess-move
 
-`best-chess-move` is a Django-based chess position analysis web app.
+Browser-based chess move calculator deployed as a simple `HTML + CSS + JavaScript + PHP` site for shared hosting / DirectAdmin environments.
 
-The application provides:
-- an interactive chessboard (desktop + mobile)
-- FEN input / synchronization
-- side-to-move selection
-- board flip (white/black perspective)
-- best-move calculation with highlighted source/target squares
+This project was converted from a Django implementation because the target host's DirectAdmin/LiteSpeed Python runtime (`lswsgi`) was missing, which caused persistent `503` errors despite the Django app itself being valid.
 
-## Tech Stack
+## Current Stack
 
-- Python 3.x
-- Django 5.x
-- `python-chess` (server-side board validation and fallback move search)
-- Vanilla JavaScript (custom board UI + interaction logic)
-- Browser-based Stockfish (Web Worker, loaded from CDN)
-- CSS (responsive custom UI theme)
+- `index.php` (page entrypoint)
+- `css/style.css` (UI styling)
+- `js/app.js` (interactive board + browser Stockfish integration)
+- `api/calculate-next-move.php` (PHP fallback stub endpoint)
 
-## Architecture
+## Features
 
-### Frontend
+- Interactive chess board (desktop + mobile)
+- Drag/drop manual position editing
+- FEN input + sync
+- Side-to-move toggle
+- Flip board (white/black perspective)
+- Browser-side Stockfish (Web Worker) analysis
+- Depth presets:
+  - Fast (10)
+  - Balanced (15) default
+  - Slow (20)
+- Loading overlay with progress updates
+- Best-move highlighting on the board
 
-- Template: `templates/chess_app/index.html`
-- Styles: `static/chess_app/css/style.css`
-- App logic: `static/chess_app/js/app.js`
+## Architecture Notes
 
-The frontend renders a custom board (no third-party board widget dependency), supports drag/drop editing, FEN parsing/generation, and board orientation flipping.
+### Move Calculation
 
-Move calculation flow:
-1. Build current FEN from board state
-2. Run browser Stockfish (Web Worker) at selected depth (`10`, `15`, `20`)
-3. Parse UCI best move
-4. Highlight move on board and display engine info
-5. If browser Stockfish is unavailable, fall back to the Django API endpoint
+Primary engine is **browser Stockfish** (client-side):
+- No server-side engine process required
+- Works on basic PHP hosting
+- Avoids Python/LiteSpeed integration issues on shared hosts
 
-### Backend
+If browser Stockfish fails to load (e.g., CDN blocked), the frontend attempts a fallback request to:
+- `api/calculate-next-move.php`
 
-- Project config: `best_chess_move/`
-- App: `chess_app/`
-- Endpoint: `POST /api/calculate-next-move/`
+The PHP fallback is currently a stub that returns a JSON error message (server-side engine disabled in the PHP build).
 
-The backend validates FEN and computes a fallback move using a `python-chess` minimax/alpha-beta search with:
-- material evaluation
-- positional piece-square tables
-- move ordering (captures/checks/promotions)
+## Project Layout
 
-This backend engine is intentionally a fallback. Strong analysis is expected to come from browser Stockfish.
+- `index.php` - active web entrypoint
+- `css/` - active styles
+- `js/` - active frontend app logic
+- `api/` - active PHP endpoints
+- `_django/` - archived legacy Django implementation (not used for production)
 
-## Local Development
+## Legacy Django Archive
 
-### 1. Create virtual environment
+The prior Django project is preserved in:
 
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
+- `_django/`
 
-If PowerShell blocks activation:
+It includes the original Django app, Python backend engine, templates, and deployment files for historical/reference purposes.
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
+It is excluded from FTP deployment via GitHub Actions.
 
-### 2. Install dependencies
+## Local Development (PHP/static)
 
-```powershell
-.\venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+Because the app is mostly frontend-driven, any simple local static/PHP server works.
 
-### 3. Run migrations
+### Option A: PHP built-in server
 
-```powershell
-.\venv\Scripts\python.exe manage.py migrate
-```
-
-### 4. Start dev server
-
-```powershell
-.\venv\Scripts\python.exe manage.py runserver
+```bash
+php -S localhost:8000
 ```
 
 Open:
-- `http://127.0.0.1:8000/`
 - `http://localhost:8000/`
 
-## API (Fallback Engine)
+### Option B: VS Code Live Server / any static server
 
-### Endpoint
+Works for the UI, but note the PHP fallback endpoint will not execute unless a PHP server is used.
 
-`POST /api/calculate-next-move/`
+## DirectAdmin Deployment
 
-### Request body
+### FTP path
 
-```json
-{
-  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-  "depth": 3
-}
-```
+If your FTP user is chrooted to the domain root (as in this setup), set:
 
-Note: backend depth is capped for performance and is mainly used when browser Stockfish is unavailable.
+- `REMOTE_PATH=public_html`
 
-## Notes / Constraints
+### Why not `domains/.../public_html`?
 
-- Browser Stockfish is currently loaded from a CDN in a Web Worker. If blocked by network policy, the app automatically uses the server fallback engine.
-- For maximum reliability, host Stockfish worker assets locally under `static/`.
-- The frontend board currently supports manual position editing (drag/drop) and FEN synchronization; it does not enforce full move legality client-side.
+That path is the server filesystem path used by DirectAdmin internally.  
+Your FTP user may already be rooted at the domain directory, so only `public_html` is visible/valid for FTP uploads.
+
+## GitHub Actions Deployment
+
+Workflow:
+- `.github/workflows/deploy.yml`
+
+Behavior:
+- Triggers on push to `main` or `master`
+- Deploys site files over FTP to `REMOTE_PATH`
+- Excludes local/dev artifacts and `_django/`
+
+Required secrets:
+- `FTP_SERVER`
+- `FTP_USERNAME`
+- `FTP_PASSWORD`
+- `FTP_PORT`
+- `REMOTE_PATH`
+
+Recommended value in this hosting setup:
+- `REMOTE_PATH=public_html`
+
+## Operational Notes
+
+- Browser Stockfish is loaded from CDN (`jsDelivr`) inside a Web Worker.
+- If the CDN is blocked, move calculation will fail with a user-facing error unless a real server-side fallback is implemented.
+- To remove CDN dependency, host the Stockfish worker locally and update `js/app.js`.
 
 ## Future Improvements
 
-- Local hosting of Stockfish WASM/worker assets (no CDN dependency)
-- SVG chess piece set (pixel/block style)
-- Full legal move enforcement client-side
+- Local-hosted Stockfish worker assets (no CDN dependency)
+- Real PHP fallback engine integration (e.g., external analysis API proxy)
+- SVG/pixel chess piece set
 - PGN import/export
-- Position setup tools (add/remove pieces, castling toggles)
+- Position setup tools (castling/en passant controls)

@@ -1,4 +1,4 @@
-name: Deploy To DirectAdmin (FTP)
+name: Deploy PHP Site (FTP)
 
 on:
   push:
@@ -38,28 +38,17 @@ jobs:
             exit 1
           fi
 
-      - name: Validate WSGI startup file
+      - name: Validate deployable PHP app files
         shell: bash
         run: |
-          if grep -q "imp.load_source('wsgi', 'passenger_wsgi.py')" passenger_wsgi.py; then
-            echo "::error::passenger_wsgi.py contains a recursive DirectAdmin stub. Replace it with the Django WSGI loader before deploying."
+          if [ ! -f "index.php" ]; then
+            echo "::error::index.php is missing at repo root."
             exit 1
           fi
-          if ! grep -q "get_wsgi_application" passenger_wsgi.py; then
-            echo "::error::passenger_wsgi.py does not appear to be the Django startup file."
+          if [ ! -f "css/style.css" ] || [ ! -f "js/app.js" ]; then
+            echo "::error::css/style.css and js/app.js must exist."
             exit 1
           fi
-
-      - name: Build deploy env file (optional for reference)
-        shell: bash
-        run: |
-          cat > .env.deploy <<'EOF'
-          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
-          MYSQL_USER=${{ secrets.MYSQL_USER }}
-          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
-          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
-          EOF
 
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -77,6 +66,7 @@ jobs:
             **/.github/**
             **/.venv/**
             **/venv/**
+            **/_django/**
             **/__pycache__/**
             **/*.pyc
             **/*.pyo
@@ -98,11 +88,6 @@ jobs:
             echo "### FTP deploy complete"
             echo ""
             echo "- Remote path: \`${{ secrets.REMOTE_PATH }}\`"
-            echo "- Uploaded code only (no remote install/migrate/restart)"
-            echo ""
-            echo "Manual/remote steps still required on server:"
-            echo "1. Install/update Python dependencies"
-            echo "2. Configure environment variables in Setup Python App"
-            echo "3. Run \`python manage.py migrate\`"
-            echo "4. Restart the Python app"
+            echo "- Uploaded PHP/HTML/CSS/JS app files"
+            echo "- Legacy Django code under \`_django/\` is excluded from deployment"
           } >> "$GITHUB_STEP_SUMMARY"

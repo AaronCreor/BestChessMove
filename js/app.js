@@ -201,7 +201,7 @@
 
       if (piece) {
         var pieceEl = document.createElement("span");
-        pieceEl.className = "piece " + (piece === piece.toUpperCase() ? "white-piece" : "black-piece");
+        pieceEl.className = "piece board-piece " + (piece === piece.toUpperCase() ? "white-piece" : "black-piece");
         pieceEl.appendChild(buildPieceIcon(piece));
         pieceEl.title = squareName + ": " + piece;
         pieceEl.draggable = true;

@@ -1,0 +1,97 @@
+name: Deploy To DirectAdmin (FTP)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+        run: |
+          missing=0
+          for key in FTP_SERVER FTP_USERNAME FTP_PASSWORD FTP_PORT REMOTE_PATH; do
+            if [ -z "${!key}" ]; then
+              echo "::error::$key is missing"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Build deploy env file (optional for reference)
+        shell: bash
+        run: |
+          cat > .env.deploy <<'EOF'
+          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          EOF
+
+      - name: FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: ./
+          server-dir: ${{ secrets.REMOTE_PATH }}/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/.venv/**
+            **/venv/**
+            **/__pycache__/**
+            **/*.pyc
+            **/*.pyo
+            **/*.sqlite3
+            **/db.sqlite3
+            **/.pytest_cache/**
+            **/.mypy_cache/**
+            **/.ruff_cache/**
+            **/node_modules/**
+            **/staticfiles/**
+            **/.env
+            **/.env.*
+            **/README.md
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          {
+            echo "### FTP deploy complete"
+            echo ""
+            echo "- Remote path: \`${{ secrets.REMOTE_PATH }}\`"
+            echo "- Uploaded code only (no remote install/migrate/restart)"
+            echo ""
+            echo "Manual/remote steps still required on server:"
+            echo "1. Install/update Python dependencies"
+            echo "2. Configure environment variables in Setup Python App"
+            echo "3. Run \`python manage.py migrate\`"
+            echo "4. Restart the Python app"
+          } >> "$GITHUB_STEP_SUMMARY"
+

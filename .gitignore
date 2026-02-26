@@ -1,0 +1,46 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+.venv/
+venv/
+env/
+ENV/
+staticfiles/
+
+# Django
+db.sqlite3
+media/
+local_settings.py
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Node / frontend (if added later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -394,12 +394,12 @@
   }
 
   function onPiecePointerDown(event) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (event.pointerType === "mouse") return;
     beginPointerDrag("board", state.pieces[event.currentTarget.dataset.square] || null, event.currentTarget.dataset.square, event, event.currentTarget);
   }
 
   function onTrayPiecePointerDown(event) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (event.pointerType === "mouse") return;
     beginPointerDrag("tray", event.currentTarget.dataset.piece || null, null, event, event.currentTarget);
   }
 

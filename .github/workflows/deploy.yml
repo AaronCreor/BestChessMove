@@ -64,7 +64,7 @@ jobs:
           EOF
 
       - name: Generate Lichess API config (server-only)
-        if: ${{ secrets.Lichess_Secret != '' }}
+        if: ${{ secrets.LICHESS_SECRET != '' }}
         shell: bash
         run: |
           mkdir -p api

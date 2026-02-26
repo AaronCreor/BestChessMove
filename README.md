@@ -1,6 +1,6 @@
 # best-chess-move
 
-`best-chess-move` is a Django-based chess position analysis web app designed to be compatible with cPanel's `Setup Python App` deployment model.
+`best-chess-move` is a Django-based chess position analysis web app.
 
 The application provides:
 - an interactive chessboard (desktop + mobile)
@@ -101,24 +101,6 @@ Open:
 ```
 
 Note: backend depth is capped for performance and is mainly used when browser Stockfish is unavailable.
-
-## Deployment (cPanel `Setup Python App`)
-
-### Files of interest
-
-- `passenger_wsgi.py` (WSGI entrypoint)
-- `manage.py`
-- `requirements.txt`
-
-### Typical cPanel setup
-
-1. Upload project files to the app root directory
-2. Create Python app in cPanel (`Setup Python App`)
-3. Set startup file to `passenger_wsgi.py`
-4. Set application entry point to `application`
-5. Install requirements in the app virtual environment
-6. Run migrations
-7. Restart the Python app
 
 ## Notes / Constraints
 

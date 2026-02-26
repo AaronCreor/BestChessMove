@@ -69,6 +69,13 @@ if (is_file($deployMetaFile)) {
         <h1>Best Chess Move</h1>
         <p>Enter a position with moves or FEN, then calculate the next move.</p>
       </div>
+      <div class="piece-tray tray-black" id="tray-black" aria-label="Black spare pieces">
+        <button type="button" class="piece tray-piece black-piece" data-piece="q" title="Add black queen">♛</button>
+        <button type="button" class="piece tray-piece black-piece" data-piece="r" title="Add black rook">♜</button>
+        <button type="button" class="piece tray-piece black-piece" data-piece="b" title="Add black bishop">♝</button>
+        <button type="button" class="piece tray-piece black-piece" data-piece="n" title="Add black knight">♞</button>
+        <button type="button" class="piece tray-piece black-piece" data-piece="p" title="Add black pawn">♟</button>
+      </div>
       <div class="board-stage">
         <div id="board" class="chess-board" aria-label="Interactive chess board"></div>
         <div id="board-loading" class="board-loading hidden" aria-live="polite" aria-hidden="true">
@@ -81,6 +88,14 @@ if (is_file($deployMetaFile)) {
           </div>
         </div>
       </div>
+      <div class="piece-tray tray-white" id="tray-white" aria-label="White spare pieces">
+        <button type="button" class="piece tray-piece white-piece" data-piece="Q" title="Add white queen">♕</button>
+        <button type="button" class="piece tray-piece white-piece" data-piece="R" title="Add white rook">♖</button>
+        <button type="button" class="piece tray-piece white-piece" data-piece="B" title="Add white bishop">♗</button>
+        <button type="button" class="piece tray-piece white-piece" data-piece="N" title="Add white knight">♘</button>
+        <button type="button" class="piece tray-piece white-piece" data-piece="P" title="Add white pawn">♙</button>
+      </div>
+      <p class="board-setup-hint">Drag spare pieces onto the board. Drag a board piece off the board to delete it.</p>
       <section class="about-panel" aria-label="About this tool">
         <h2>Next Chess Move</h2>
         <p>Drag pieces to configure the board and press <strong>Calculate next move</strong>. The engine will analyze the current position and highlight the suggested move.</p>

@@ -12,6 +12,7 @@
   var statusText = document.getElementById("status-text");
   var bestMoveText = document.querySelector("#best-move-text span");
   var sideInputs = document.querySelectorAll('input[name="side-to-move"]');
+  var trayPieces = document.querySelectorAll(".tray-piece");
 
   var FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
   var RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
@@ -29,6 +30,20 @@
     q: "♛",
     k: "♚"
   };
+  var PIECE_SVG = {
+    P: "media/Chess_plt45.svg",
+    N: "media/Chess_nlt45.svg",
+    B: "media/Chess_blt45.svg",
+    R: "media/Chess_rlt45.svg",
+    Q: "media/Chess_qlt45.svg",
+    K: "media/Chess_klt45.svg",
+    p: "media/Chess_pdt45.svg",
+    n: "media/Chess_ndt45.svg",
+    b: "media/Chess_bdt45.svg",
+    r: "media/Chess_rdt45.svg",
+    q: "media/Chess_qdt45.svg",
+    k: "media/Chess_kdt45.svg"
+  };
 
   var state = {
     orientation: "white",
@@ -39,6 +54,9 @@
     halfmove: 0,
     fullmove: 1,
     dragFrom: null,
+    dragSourceType: null,
+    dragPieceCode: null,
+    dragMoveCommitted: false,
     highlightedFrom: null,
     highlightedTo: null
   };
@@ -184,14 +202,24 @@
       if (piece) {
         var pieceEl = document.createElement("span");
         pieceEl.className = "piece " + (piece === piece.toUpperCase() ? "white-piece" : "black-piece");
-        pieceEl.textContent = PIECE_LABELS[piece];
+        pieceEl.appendChild(buildPieceIcon(piece));
         pieceEl.title = squareName + ": " + piece;
         pieceEl.draggable = true;
         pieceEl.dataset.square = squareName;
         pieceEl.addEventListener("dragstart", onPieceDragStart);
+        pieceEl.addEventListener("dragend", onPieceDragEnd);
         squareEl.appendChild(pieceEl);
       }
     });
+  }
+
+  function buildPieceIcon(pieceCode) {
+    var img = document.createElement("img");
+    img.className = "piece-icon";
+    img.alt = "";
+    img.draggable = false;
+    img.src = PIECE_SVG[pieceCode] || "";
+    return img;
   }
 
   function renderBoard() {
@@ -292,13 +320,90 @@
 
   function onPieceDragStart(event) {
     state.dragFrom = event.target.dataset.square;
+    state.dragSourceType = "board";
+    state.dragPieceCode = state.pieces[state.dragFrom] || null;
+    state.dragMoveCommitted = false;
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", state.dragFrom);
   }
 
+  function onPieceDragEnd(event) {
+    if (state.dragSourceType !== "board" || state.dragMoveCommitted || !state.dragFrom) {
+      state.dragFrom = null;
+      state.dragSourceType = null;
+      state.dragPieceCode = null;
+      state.dragMoveCommitted = false;
+      return;
+    }
+
+    var grid = boardRoot.querySelector(".squares-grid");
+    if (!grid) {
+      return;
+    }
+
+    var rect = grid.getBoundingClientRect();
+    var x = event.clientX;
+    var y = event.clientY;
+    var droppedOutside =
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x < rect.left || x > rect.right || y < rect.top || y > rect.bottom;
+
+    if (droppedOutside && state.pieces[state.dragFrom]) {
+      delete state.pieces[state.dragFrom];
+      state.castling = "-";
+      state.enPassant = "-";
+      state.halfmove = 0;
+      state.fullmove = 1;
+      clearHighlights();
+      bestMoveText.textContent = "-";
+      renderPieces();
+      syncFenUI();
+      setStatus("Piece removed from board.", false);
+    }
+
+    state.dragFrom = null;
+    state.dragSourceType = null;
+    state.dragPieceCode = null;
+    state.dragMoveCommitted = false;
+  }
+
+  function onTrayPieceDragStart(event) {
+    state.dragFrom = null;
+    state.dragSourceType = "tray";
+    state.dragPieceCode = event.target.dataset.piece || null;
+    state.dragMoveCommitted = false;
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("text/plain", state.dragPieceCode || "");
+  }
+
+  function onTrayPieceDragEnd() {
+    state.dragFrom = null;
+    state.dragSourceType = null;
+    state.dragPieceCode = null;
+    state.dragMoveCommitted = false;
+  }
+
+  function onTrayDrop(event) {
+    event.preventDefault();
+    if (state.dragSourceType === "board" && state.dragFrom && state.pieces[state.dragFrom]) {
+      delete state.pieces[state.dragFrom];
+      state.dragMoveCommitted = true;
+      state.castling = "-";
+      state.enPassant = "-";
+      state.halfmove = 0;
+      state.fullmove = 1;
+      clearHighlights();
+      bestMoveText.textContent = "-";
+      renderPieces();
+      syncFenUI();
+      setStatus("Piece removed from board.", false);
+    }
+  }
+
   function onSquareDragOver(event) {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+    event.dataTransfer.dropEffect = state.dragSourceType === "tray" ? "copy" : "move";
   }
 
   function applyManualMove(fromSquare, toSquare) {
@@ -327,11 +432,37 @@
     setStatus("Position updated by drag-and-drop.", false);
   }
 
+  function addPieceToSquare(pieceCode, toSquare) {
+    if (!pieceCode || !toSquare) {
+      return;
+    }
+
+    state.pieces[toSquare] = pieceCode;
+    state.castling = "-";
+    state.enPassant = "-";
+    state.halfmove = 0;
+    state.fullmove = 1;
+    clearHighlights();
+    bestMoveText.textContent = "-";
+    renderPieces();
+    syncFenUI();
+    setStatus("Piece added to board.", false);
+  }
+
   function onSquareDrop(event) {
     event.preventDefault();
-    var fromSquare = event.dataTransfer.getData("text/plain") || state.dragFrom;
     var toSquare = event.currentTarget.dataset.square;
-    state.dragFrom = null;
+
+    if (state.dragSourceType === "tray") {
+      if (state.dragPieceCode) {
+        state.dragMoveCommitted = true;
+        addPieceToSquare(state.dragPieceCode, toSquare);
+      }
+      return;
+    }
+
+    var fromSquare = event.dataTransfer.getData("text/plain") || state.dragFrom;
+    state.dragMoveCommitted = true;
     applyManualMove(fromSquare, toSquare);
   }
 
@@ -740,6 +871,26 @@
   fenInput.addEventListener("change", applyFenFromInput);
   sideInputs.forEach(function (input) {
     input.addEventListener("change", updateTurnFromRadio);
+  });
+  trayPieces.forEach(function (pieceEl) {
+    pieceEl.setAttribute("draggable", "true");
+    var trayPieceCode = pieceEl.dataset.piece || "";
+    pieceEl.textContent = "";
+    if (trayPieceCode) {
+      pieceEl.appendChild(buildPieceIcon(trayPieceCode));
+    }
+    pieceEl.addEventListener("dragstart", onTrayPieceDragStart);
+    pieceEl.addEventListener("dragend", onTrayPieceDragEnd);
+  });
+  var trayBlack = document.getElementById("tray-black");
+  var trayWhite = document.getElementById("tray-white");
+  [trayBlack, trayWhite].forEach(function (trayEl) {
+    if (!trayEl) return;
+    trayEl.addEventListener("dragover", function (event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    });
+    trayEl.addEventListener("drop", onTrayDrop);
   });
 
   setBoardLoading(false);

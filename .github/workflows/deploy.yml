@@ -64,16 +64,17 @@ jobs:
           EOF
 
       - name: Generate Lichess API config (server-only)
-        if: ${{ secrets.Lichess_Secret != '' }}
         shell: bash
+        env:
+          LICHESS_SECRET: ${{ secrets.LICHESS_SECRET }}
         run: |
           mkdir -p api
-          cat > api/lichess-config.php <<'EOF'
+          cat > api/lichess-config.php <<EOF
           <?php
           declare(strict_types=1);
 
           return [
-              'token' => '${{ secrets.Lichess_Secret }}',
+              'token' => '${LICHESS_SECRET}',
           ];
           EOF
 

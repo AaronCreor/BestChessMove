@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 $deployLabel = 'Last deployed via GitHub Actions: pending';
 $deployMetaFile = __DIR__ . DIRECTORY_SEPARATOR . 'deploy-meta.json';
+$cssVersion = @filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'style.css') ?: time();
+$jsVersion = @filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'app.js') ?: time();
 if (is_file($deployMetaFile)) {
     $raw = file_get_contents($deployMetaFile);
     if (is_string($raw)) {
@@ -49,7 +51,7 @@ if (is_file($deployMetaFile)) {
     }
   }
   </script>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=<?php echo rawurlencode((string) $cssVersion); ?>">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-00Z48PQSF2"></script>
   <script>
@@ -84,6 +86,10 @@ if (is_file($deployMetaFile)) {
         <p>Drag pieces to configure the board and press <strong>Calculate next move</strong>. The engine will analyze the current position and highlight the suggested move.</p>
         <p>Use FEN to paste positions instantly, flip the board for Black's perspective, and test openings, tactics, or endgames on desktop or mobile.</p>
       </section>
+      <footer class="panel-footer">
+        <p class="panel-footer-left">Created by <a href="https://aaroncreor.com/" target="_blank" rel="noopener noreferrer">Aaron Creor</a></p>
+        <p class="panel-footer-right"><?php echo htmlspecialchars($deployLabel, ENT_QUOTES, 'UTF-8'); ?></p>
+      </footer>
     </section>
 
     <aside class="controls-panel" aria-label="Chess controls">
@@ -121,13 +127,6 @@ if (is_file($deployMetaFile)) {
       </div>
     </aside>
   </main>
-  <footer class="site-footer">
-    <div class="site-footer-inner">
-      <p class="footer-left">Created by <a href="https://aaroncreor.com/" target="_blank" rel="noopener noreferrer">Aaron Creor</a></p>
-      <p class="footer-right"><?php echo htmlspecialchars($deployLabel, ENT_QUOTES, 'UTF-8'); ?></p>
-    </div>
-  </footer>
-
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=<?php echo rawurlencode((string) $jsVersion); ?>"></script>
 </body>
 </html>

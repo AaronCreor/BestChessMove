@@ -118,6 +118,7 @@ body {
 
 .board-stage {
   position: relative;
+  touch-action: none;
 }
 
 .piece-tray {
@@ -127,6 +128,7 @@ body {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.2rem 0.1rem;
+  touch-action: none;
 }
 
 .tray-white {
@@ -233,6 +235,7 @@ body {
   place-items: center;
   user-select: none;
   position: relative;
+  touch-action: none;
 }
 
 .board-square.light {
@@ -324,6 +327,31 @@ body {
 
 .piece:active {
   cursor: grabbing;
+}
+
+.drag-origin-hidden {
+  opacity: 0.25;
+}
+
+body.dragging-piece {
+  user-select: none;
+}
+
+.pointer-drag-ghost {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  margin-top: -28px;
+  z-index: 9999;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+
+.pointer-drag-ghost .piece.board-piece {
+  width: 100%;
+  height: 100%;
 }
 
 .white-piece {
@@ -554,6 +582,13 @@ button:disabled {
     width: 44px;
     height: 44px;
     font-size: 1.35rem;
+  }
+
+  .pointer-drag-ghost {
+    width: 52px;
+    height: 52px;
+    margin-left: -26px;
+    margin-top: -26px;
   }
 
   .board-square .piece.board-piece .piece-icon {

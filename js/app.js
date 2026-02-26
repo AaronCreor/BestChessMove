@@ -57,6 +57,8 @@
     dragSourceType: null,
     dragPieceCode: null,
     dragMoveCommitted: false,
+    pointerDrag: null,
+    suppressClickUntil: 0,
     highlightedFrom: null,
     highlightedTo: null
   };
@@ -208,6 +210,7 @@
         pieceEl.dataset.square = squareName;
         pieceEl.addEventListener("dragstart", onPieceDragStart);
         pieceEl.addEventListener("dragend", onPieceDragEnd);
+        pieceEl.addEventListener("pointerdown", onPiecePointerDown);
         squareEl.appendChild(pieceEl);
       }
     });
@@ -327,12 +330,184 @@
     event.dataTransfer.setData("text/plain", state.dragFrom);
   }
 
+  function clearDragSelectionState() {
+    state.dragFrom = null;
+    state.dragSourceType = null;
+    state.dragPieceCode = null;
+    state.dragMoveCommitted = false;
+  }
+
+  function cleanupPointerDrag() {
+    if (state.pointerDrag && state.pointerDrag.ghost && state.pointerDrag.ghost.parentNode) {
+      state.pointerDrag.ghost.parentNode.removeChild(state.pointerDrag.ghost);
+    }
+    if (state.pointerDrag && state.pointerDrag.originEl) {
+      state.pointerDrag.originEl.classList.remove("drag-origin-hidden");
+    }
+    state.pointerDrag = null;
+    clearDragSelectionState();
+    document.body.classList.remove("dragging-piece");
+  }
+
+  function movePointerGhost(ghost, x, y) {
+    if (!ghost) return;
+    ghost.style.left = x + "px";
+    ghost.style.top = y + "px";
+  }
+
+  function createPointerGhost(pieceCode, x, y) {
+    var ghost = document.createElement("div");
+    ghost.className = "pointer-drag-ghost";
+    var pieceEl = document.createElement("span");
+    pieceEl.className = "piece board-piece " + (pieceCode === pieceCode.toUpperCase() ? "white-piece" : "black-piece");
+    pieceEl.appendChild(buildPieceIcon(pieceCode));
+    ghost.appendChild(pieceEl);
+    document.body.appendChild(ghost);
+    movePointerGhost(ghost, x, y);
+    return ghost;
+  }
+
+  function beginPointerDrag(sourceType, pieceCode, fromSquare, pointerEvent, originEl) {
+    state.dragFrom = fromSquare || null;
+    state.dragSourceType = sourceType;
+    state.dragPieceCode = pieceCode || null;
+    state.dragMoveCommitted = false;
+
+    if (!pieceCode) {
+      clearDragSelectionState();
+      return;
+    }
+
+    state.pointerDrag = {
+      pointerId: pointerEvent.pointerId,
+      sourceType: sourceType,
+      fromSquare: fromSquare || null,
+      pieceCode: pieceCode,
+      startX: pointerEvent.clientX,
+      startY: pointerEvent.clientY,
+      lastX: pointerEvent.clientX,
+      lastY: pointerEvent.clientY,
+      started: false,
+      ghost: null,
+      originEl: originEl || null
+    };
+  }
+
+  function onPiecePointerDown(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    beginPointerDrag("board", state.pieces[event.currentTarget.dataset.square] || null, event.currentTarget.dataset.square, event, event.currentTarget);
+  }
+
+  function onTrayPiecePointerDown(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    beginPointerDrag("tray", event.currentTarget.dataset.piece || null, null, event, event.currentTarget);
+  }
+
+  function pointerDropTargetAt(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return {
+      squareEl: el && el.closest ? el.closest(".board-square") : null,
+      trayEl: el && el.closest ? el.closest(".piece-tray") : null
+    };
+  }
+
+  function removeBoardPiece(square) {
+    if (!square || !state.pieces[square]) return false;
+    delete state.pieces[square];
+    state.castling = "-";
+    state.enPassant = "-";
+    state.halfmove = 0;
+    state.fullmove = 1;
+    clearHighlights();
+    bestMoveText.textContent = "-";
+    renderPieces();
+    syncFenUI();
+    setStatus("Piece removed from board.", false);
+    return true;
+  }
+
+  function commitPointerDrop(x, y) {
+    var drag = state.pointerDrag;
+    if (!drag) return;
+    var targets = pointerDropTargetAt(x, y);
+    var toSquare = targets.squareEl ? targets.squareEl.dataset.square : null;
+
+    if (drag.sourceType === "tray") {
+      if (toSquare && drag.pieceCode) {
+        state.dragMoveCommitted = true;
+        addPieceToSquare(drag.pieceCode, toSquare);
+      }
+      return;
+    }
+
+    if (drag.sourceType !== "board") return;
+
+    if (toSquare) {
+      state.dragMoveCommitted = true;
+      applyManualMove(drag.fromSquare, toSquare);
+      return;
+    }
+
+    if (targets.trayEl) {
+      if (removeBoardPiece(drag.fromSquare)) {
+        state.dragMoveCommitted = true;
+      }
+      return;
+    }
+
+    var grid = boardRoot.querySelector(".squares-grid");
+    if (!grid) return;
+    var rect = grid.getBoundingClientRect();
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      if (removeBoardPiece(drag.fromSquare)) {
+        state.dragMoveCommitted = true;
+      }
+    }
+  }
+
+  function onGlobalPointerMove(event) {
+    var drag = state.pointerDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+
+    var dx = event.clientX - drag.startX;
+    var dy = event.clientY - drag.startY;
+    if (!drag.started && (dx * dx + dy * dy) > 36) {
+      drag.started = true;
+      drag.ghost = createPointerGhost(drag.pieceCode, event.clientX, event.clientY);
+      if (drag.originEl) {
+        drag.originEl.classList.add("drag-origin-hidden");
+      }
+      document.body.classList.add("dragging-piece");
+    }
+
+    if (drag.started) {
+      event.preventDefault();
+      movePointerGhost(drag.ghost, event.clientX, event.clientY);
+    }
+  }
+
+  function onGlobalPointerUp(event) {
+    var drag = state.pointerDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (drag.started) {
+      event.preventDefault();
+      commitPointerDrop(event.clientX, event.clientY);
+      state.suppressClickUntil = Date.now() + 250;
+    }
+    cleanupPointerDrag();
+  }
+
+  function onGlobalPointerCancel(event) {
+    if (!state.pointerDrag || event.pointerId !== state.pointerDrag.pointerId) return;
+    cleanupPointerDrag();
+  }
+
   function onPieceDragEnd(event) {
     if (state.dragSourceType !== "board" || state.dragMoveCommitted || !state.dragFrom) {
-      state.dragFrom = null;
-      state.dragSourceType = null;
-      state.dragPieceCode = null;
-      state.dragMoveCommitted = false;
+      clearDragSelectionState();
       return;
     }
 
@@ -362,10 +537,7 @@
       setStatus("Piece removed from board.", false);
     }
 
-    state.dragFrom = null;
-    state.dragSourceType = null;
-    state.dragPieceCode = null;
-    state.dragMoveCommitted = false;
+    clearDragSelectionState();
   }
 
   function onTrayPieceDragStart(event) {
@@ -378,10 +550,7 @@
   }
 
   function onTrayPieceDragEnd() {
-    state.dragFrom = null;
-    state.dragSourceType = null;
-    state.dragPieceCode = null;
-    state.dragMoveCommitted = false;
+    clearDragSelectionState();
   }
 
   function onTrayDrop(event) {
@@ -467,6 +636,9 @@
   }
 
   function onSquareClick(event) {
+    if (Date.now() < state.suppressClickUntil) {
+      return;
+    }
     var square = event.currentTarget.dataset.square;
     if (state.dragFrom && state.dragFrom !== square) {
       applyManualMove(state.dragFrom, square);
@@ -881,6 +1053,7 @@
     }
     pieceEl.addEventListener("dragstart", onTrayPieceDragStart);
     pieceEl.addEventListener("dragend", onTrayPieceDragEnd);
+    pieceEl.addEventListener("pointerdown", onTrayPiecePointerDown);
   });
   var trayBlack = document.getElementById("tray-black");
   var trayWhite = document.getElementById("tray-white");
@@ -892,6 +1065,9 @@
     });
     trayEl.addEventListener("drop", onTrayDrop);
   });
+  document.addEventListener("pointermove", onGlobalPointerMove, { passive: false });
+  document.addEventListener("pointerup", onGlobalPointerUp, { passive: false });
+  document.addEventListener("pointercancel", onGlobalPointerCancel, { passive: false });
 
   setBoardLoading(false);
   resetBoard();
